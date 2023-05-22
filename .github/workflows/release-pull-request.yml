@@ -1,4 +1,4 @@
-name: Release
+name: Release Pull Request
 
 on:
   workflow_dispatch:
@@ -13,31 +13,40 @@ on:
         - beta
         - alpha
         - latest
-      branch:
-        description: 'Release Branch(confirm release branch)'
-        required: true
-        default: 'main'
 
 jobs:
   release:
-    name: Release
+    name: Create Release Pull Request
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
         with:
-          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
-          fetch-depth: 1
-          ref: refs/pull/${{ github.event.issue.number }}/head
+          fetch-depth: 100
 
-      - name: Release
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: modern-js-dev/actions@main
+      - name: Install Pnpm
+        run: corepack enable
+
+      - name: Setup Node.js 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --ignore-scripts
+
+      - name: Prepare Monorepo-Tools
+        run: pnpm run --filter @modern-js/monorepo-tools... build
+
+      - name: Create Release Pull Request
+        uses: web-infra-dev/actions@v2
         with:
           # this expects you to have a script called release which does a build for your packages and calls changeset publish
           version: ${{ github.event.inputs.version }}
-          branch: ${{ github.event.inputs.branch }}
-          type: 'release'
+          versionNumber: 'auto'
+          type: 'pull request'
+          tools: 'modern'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
