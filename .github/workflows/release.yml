@@ -21,6 +21,7 @@ on:
 jobs:
   release:
     name: Release
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -28,18 +29,30 @@ jobs:
         with:
           # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
           fetch-depth: 1
-          ref: refs/pull/${{ github.event.issue.number }}/head
+
+      - name: Install Pnpm
+        run: corepack enable
+
+      - name: Setup Node.js 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: 'pnpm'
+
+      - name: Install Dependencies && Build
+        run: pnpm install
 
       - name: Release
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: modern-js-dev/actions@main
+        uses: web-infra-dev/actions@v2
         with:
-          # this expects you to have a script called release which does a build for your packages and calls changeset publish
           version: ${{ github.event.inputs.version }}
           branch: ${{ github.event.inputs.branch }}
           type: 'release'
+          tools: 'modern'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           REF: ${{ github.ref }}
+
+
